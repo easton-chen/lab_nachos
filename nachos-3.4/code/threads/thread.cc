@@ -49,7 +49,7 @@ int assignTid()
 }
 /* end add */
 
-Thread::Thread(char* threadName)
+Thread::Thread(char* threadName, int prior = 15)
 {
     name = threadName;
     stackTop = NULL;
@@ -65,6 +65,12 @@ Thread::Thread(char* threadName)
         printf("The number of threads has exceeded the limit!\n");
     ASSERT(threadID != -1);
     /* end add */
+    /* add in lab2 ex3 */
+    if(prior >= 0 && prior <= 15)
+        priority = prior;
+    else // if the input is illegal, priority is set to 15
+        priority = 15;
+    /*end add*/
 }
 
 //----------------------------------------------------------------------
@@ -118,8 +124,16 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
     StackAllocate(func, arg);
 
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
-    scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
+    //scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
 					// are disabled!
+    /* add in lab2 ex3 */
+    if(this->getPriority() < currentThread->getPriority()){
+        scheduler->ReadyToRun(currentThread);
+	    scheduler->Run(this);
+    }
+    else
+        scheduler->ReadyToRun(this);
+    /* end add */
     (void) interrupt->SetLevel(oldLevel);
 }    
 
@@ -206,10 +220,13 @@ Thread::Yield ()
     
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
+    /* add in lab2 ex3 */
+    scheduler->ReadyToRun(this);
+    /* end add */
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+	    //scheduler->ReadyToRun(this); // comment in lab2 ex3
+	    scheduler->Run(nextThread);
     }
     (void) interrupt->SetLevel(oldLevel);
 }

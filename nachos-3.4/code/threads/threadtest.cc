@@ -75,7 +75,7 @@ void ThreadTest2()
 
 //----------------------------------------------------------------------
 // ThreadTest3
-// 	Fork over 128 threads to see whether the error will be detected.
+// 	Fork over 5 threads and show the threads status
 //  add in lab1 ex4
 //----------------------------------------------------------------------
 void foo(int which)
@@ -97,6 +97,30 @@ void ThreadTest3()
 
 
 //----------------------------------------------------------------------
+// ThreadTest4
+// 	Fork over 5 threads and preempt
+//  add in lab2 ex3
+//----------------------------------------------------------------------
+void foo1(int which)
+{  
+    printf("I am thread %d with priority %d\n",currentThread->getThreadID(), which);
+}
+
+void ThreadTest4()
+{
+    DEBUG('t', "Entering ThreadTest4");
+
+    for(int i = 0; i < 5; i++ ){
+        Thread *t = new Thread("forked thread", 14 - i);
+        printf("*** thread name %s id %d priority %d \n", t->getName(), 
+            t->getThreadID(), t->getPriority());
+        t->Fork(foo1, (void*)t->getPriority());
+    }
+}
+
+
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -113,6 +137,9 @@ ThreadTest()
     break;
     case 3:
     ThreadTest3();
+    break;
+    case 4:
+    ThreadTest4();
     break;
     default:
 	printf("No test specified.\n");

@@ -56,7 +56,10 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
-    readyList->Append((void *)thread);
+    //readyList->Append((void *)thread);
+    /* add in lab2 ex3 */
+    readyList->SortedInsert((void*)thread, thread->getPriority());
+    /* end add */
 }
 
 //----------------------------------------------------------------------
@@ -70,7 +73,9 @@ Scheduler::ReadyToRun (Thread *thread)
 Thread *
 Scheduler::FindNextToRun ()
 {
-    return (Thread *)readyList->Remove();
+    //return (Thread *)readyList->Remove();
+    int p;
+    return (Thread *)readyList->SortedRemove(&p);
 }
 
 //----------------------------------------------------------------------
@@ -123,13 +128,13 @@ Scheduler::Run (Thread *nextThread)
     // point, we were still running on the old thread's stack!
     if (threadToBeDestroyed != NULL) {
         delete threadToBeDestroyed;
-	threadToBeDestroyed = NULL;
+	    threadToBeDestroyed = NULL;
     }
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {		// if there is an address space
         currentThread->RestoreUserState();     // to restore, do it.
-	currentThread->space->RestoreState();
+	    currentThread->space->RestoreState();
     }
 #endif
 }
