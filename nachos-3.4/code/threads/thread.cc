@@ -70,6 +70,7 @@ Thread::Thread(char* threadName, int prior = 15)
         priority = prior;
     else // if the input is illegal, priority is set to 15
         priority = 15;
+    timeSliceLeft = 0;
     /*end add*/
 }
 
@@ -127,6 +128,7 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
     //scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
 					// are disabled!
     /* add in lab2 ex3 */
+    /* if all the threads have the same priority, then this can be used in lab2 ch1*/
     if(this->getPriority() < currentThread->getPriority()){
         scheduler->ReadyToRun(currentThread);
 	    scheduler->Run(this);
@@ -221,9 +223,17 @@ Thread::Yield ()
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
     /* add in lab2 ex3 */
-    scheduler->ReadyToRun(this);
+    //scheduler->ReadyToRun(this);
     /* end add */
-    nextThread = scheduler->FindNextToRun();
+    /* add in lab2 ch1 */
+    if(timeSliceLeft != 0)
+        nextThread = this;
+    else{
+        nextThread = scheduler->FindNextToRun();
+        scheduler->ReadyToRun(this);
+    }
+    /* end add*/
+    //nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
 	    //scheduler->ReadyToRun(this); // comment in lab2 ex3
 	    scheduler->Run(nextThread);

@@ -116,6 +116,8 @@ class Thread {
     /* add in lab2 ex3 */
     int getPriority(){ return priority; }
     void setPriority(int p) { priority = p; }
+    int getTimeSliceLeft(){ return timeSliceLeft; }
+    void setTimeSliceLeft(int t) { timeSliceLeft = t; }
     /* end add */
   private:
     // some of the private data for this class is listed above
@@ -132,6 +134,7 @@ class Thread {
     /* end add */
     /* add in lab2 ex3 */
     int priority;
+    int timeSliceLeft;
     /* end add */
 
     void StackAllocate(VoidFunctionPtr func, void *arg);

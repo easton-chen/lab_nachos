@@ -12,7 +12,9 @@
 #include "copyright.h"
 #include "system.h"
 #include "elevatortest.h"
+#include "synch.h"
 
+#define N 10
 // testnum is set in main.cc
 int testnum = 1;
 
@@ -30,10 +32,11 @@ SimpleThread(int which)
 {
     int num;
     
-    for (num = 0; num < 5; num++) {
+    for (num = 0; num < 100; num++) {
 	    printf("*** thread name %s id %d user %d looped %d times\n", currentThread->getName(), 
             currentThread->getThreadID(), currentThread->getUserID(), num);
-        currentThread->Yield();
+        interrupt->SetLevel(IntOn);
+        interrupt->SetLevel(IntOff);
     }
 }
 
@@ -66,7 +69,7 @@ void ThreadTest2()
 {
     DEBUG('t', "Entering ThreadTest2");
 
-    for(int i = 0; i <= MAX_THREAD_NUM; i++){
+    for(int i = 0; i < 5; i++){
         Thread *t = new Thread("forked thread");
         printf("*** thread name %s id %d user %d \n", t->getName(), 
             t->getThreadID(), t->getUserID());
@@ -118,7 +121,87 @@ void ThreadTest4()
     }
 }
 
+//----------------------------------------------------------------------
+// ThreadTestSync
+// 	use semaphore and condition to solve producer-consumer problem
+//  add in lab3 ex4
+//----------------------------------------------------------------------
+Semaphore* mutex = new Semaphore("mutex", 1);
+Semaphore* empty = new Semaphore("empty", N);
+Semaphore* full = new Semaphore("full", 0);
+Condition* c = new Condition("condition");
+Lock* arrayLock = new Lock("arraylock");
+int sharedArray[N];
+int arrayIndex = 0;
 
+void Producer1(int num){
+    while(num--){
+        int product = 1; //pretend to produce
+        empty->P();
+        mutex->P();
+        sharedArray[arrayIndex] = product;
+        printf("producer put %d in no.%d\n", product, arrayIndex++);
+        mutex->V();
+        full->V();
+    }
+
+}
+
+void Consumer1(int num){
+    while(num--){
+        int product;
+        full->P();
+        mutex->P();
+        product = sharedArray[--arrayIndex];
+        printf("consumer take %d in no.%d\n", product, arrayIndex);
+        mutex->V();
+        empty->V();
+    }
+}
+
+void semaphoreTest(){
+    Thread* tProducer = new Thread("Producer");
+    Thread* tConsumer = new Thread("Consumer");
+    tProducer->Fork(Producer1, (void*)12);
+    tConsumer->Fork(Consumer1, (void*)15);
+}
+
+void Producer2(int num){
+    while(num--){
+        int product = 1; 
+        arrayLock->Acquire();
+        while(arrayIndex == N){
+            c->Wait(arrayLock);
+        }
+        sharedArray[arrayIndex] = product;
+        printf("producer put %d in no.%d\n", product, arrayIndex++);
+        if(arrayIndex == 1)
+            c->Signal(arrayLock);
+        arrayLock->Release();    
+    }
+}
+
+void Consumer2(int num){
+    while(num--){
+        int product;
+        arrayLock->Acquire();
+        while(arrayIndex == 0){
+            c->Wait(arrayLock);
+        }
+        product = sharedArray[--arrayIndex];
+        printf("consumer take %d in no.%d\n", product, arrayIndex);
+        if(arrayIndex == N-1)
+            c->Signal(arrayLock);
+        arrayLock->Release();
+    }
+}
+
+void conditionTest(){
+    Thread* tProducer = new Thread("Producer");
+    Thread* tConsumer = new Thread("Consumer");
+    tProducer->Fork(Producer2, (void*)12);
+    tConsumer->Fork(Consumer2, (void*)15);
+}
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -140,6 +223,12 @@ ThreadTest()
     break;
     case 4:
     ThreadTest4();
+    break;
+    case 5:
+    semaphoreTest();
+    break;
+    case 6:
+    conditionTest();
     break;
     default:
 	printf("No test specified.\n");

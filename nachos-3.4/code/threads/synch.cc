@@ -67,8 +67,8 @@ Semaphore::P()
     IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
     
     while (value == 0) { 			// semaphore not available
-	queue->Append((void *)currentThread);	// so go to sleep
-	currentThread->Sleep();
+	    queue->Append((void *)currentThread);	// so go to sleep
+	    currentThread->Sleep();
     } 
     value--; 					// semaphore available, 
 						// consume its value
@@ -92,7 +92,7 @@ Semaphore::V()
 
     thread = (Thread *)queue->Remove();
     if (thread != NULL)	   // make thread ready, consuming the V immediately
-	scheduler->ReadyToRun(thread);
+	    scheduler->ReadyToRun(thread);
     value++;
     (void) interrupt->SetLevel(oldLevel);
 }
@@ -100,13 +100,114 @@ Semaphore::V()
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+/* add in lab3 ex3 */
+Lock::Lock(char* debugName) {
+    name = debugName;
+    s = new Semaphore(debugName, 1);
+    ownerThread = NULL;
+}
 
-Condition::Condition(char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+Lock::~Lock() { delete s; }
+
+void Lock::Acquire() {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    s->P();
+    ownerThread = currentThread;
+    (void) interrupt->SetLevel(oldLevel);
+}
+
+void Lock::Release() {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    s->V();
+    ownerThread = NULL;
+    (void) interrupt->SetLevel(oldLevel);
+}
+
+bool Lock::isHeldByCurrentThread(){
+    return ownerThread == currentThread;
+}
+
+Condition::Condition(char* debugName) {
+    name = debugName;
+    queue = new List;
+}
+
+Condition::~Condition() { 
+    delete queue;
+}
+
+void Condition::Wait(Lock* conditionLock) { 
+    //ASSERT(FALSE); 
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    if(conditionLock->isHeldByCurrentThread()){
+        conditionLock->Release();
+        queue->Append(currentThread);
+        currentThread->Sleep();
+        conditionLock->Acquire();
+    }
+    (void) interrupt->SetLevel(oldLevel);
+}
+
+void Condition::Signal(Lock* conditionLock) {
+    Thread* nextThread;
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    if(conditionLock->isHeldByCurrentThread()){
+        if(!queue->IsEmpty()){
+            nextThread = (Thread*)queue->Remove();
+            scheduler->ReadyToRun(nextThread);
+        }
+    }
+    (void) interrupt->SetLevel(oldLevel);
+}
+
+void Condition::Broadcast(Lock* conditionLock) {
+    Thread* nextThread;
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    if(conditionLock->isHeldByCurrentThread()){
+        while(!queue->IsEmpty()){
+            nextThread = (Thread*)queue->Remove();
+            scheduler->ReadyToRun(nextThread);
+        }
+    }
+    (void) interrupt->SetLevel(oldLevel);
+}
+/* end add */
+
+/* implementation of ReadWriteLock */
+/* add in lab3 ch2 */
+ReadWriteLock::ReadWriteLock(char* debugName){
+    name = debugName;
+    readLock = new Lock("readlock");
+    writeLock = new Lock("writelock");
+    readnum = 0;
+}
+
+ReadWriteLock::~ReadWriteLock(){
+    delete readLock;
+    delete writeLock;
+}
+
+void ReadWriteLock::lockOnRead(){
+    readLock->Acquire();
+    readnum++;
+    if(readnum == 1)
+        writeLock->Acquire(); //the first reader must lock the write lock
+    readLock->Release();
+}
+
+void ReadWriteLock::unlockOnRead(){
+    readLock->Acquire();
+    readnum--;
+    if(readnum == 0)
+        writeLock->Release(); // the last reader must release the write lock
+    readLock->Release();
+}
+
+void ReadWriteLock::lockOnWrite(){
+    writeLock->Acquire();
+}
+
+void ReadWriteLock::unlockOnWrite(){
+    writeLock->Release();
+}
+/* end add */

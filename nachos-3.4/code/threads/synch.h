@@ -80,6 +80,8 @@ class Lock {
   private:
     char* name;				// for debugging
     // plus some other stuff you'll need to define
+    Semaphore* s;
+    Thread* ownerThread;
 };
 
 // The following class defines a "condition variable".  A condition
@@ -132,5 +134,33 @@ class Condition {
   private:
     char* name;
     // plus some other stuff you'll need to define
+    List* queue;
 };
+
+
+// ReadWriteLock class
+// add in lab3 ch2
+// this class define a ReadWriteLock which is implemented using Lock
+// when a thread wants to read, it should use ReadLock
+// when a thread wants to write, it should use WriteLock
+// it makes sure that multiple threads can read together but only one thread can write at one time
+
+class ReadWriteLock {
+  public:
+    ReadWriteLock(char* debugName);
+    ~ReadWriteLock();
+    char* getName() { return (name); }
+
+    void lockOnRead();
+    void unlockOnRead();
+    void lockOnWrite();
+    void unlockOnWrite();
+  
+  private:
+    Lock* readLock;
+    Lock* writeLock;
+    int readnum;
+    char* name;
+};
+
 #endif // SYNCH_H
