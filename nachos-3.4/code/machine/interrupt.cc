@@ -122,7 +122,7 @@ Interrupt::SetLevel(IntStatus now)
 
     ChangeLevel(old, now);			// change to new state
     if ((now == IntOn) && (old == IntOff))
-	OneTick();				// advance simulated time
+	    OneTick();				// advance simulated time
     return old;
 }
 
@@ -155,14 +155,14 @@ Interrupt::OneTick()
 // advance simulated time
     if (status == SystemMode) {
         stats->totalTicks += SystemTick;
-	stats->systemTicks += SystemTick;
+	    stats->systemTicks += SystemTick;
     } else {					// USER_PROGRAM
-	stats->totalTicks += UserTick;
-	stats->userTicks += UserTick;
+	    stats->totalTicks += UserTick;
+	    stats->userTicks += UserTick;
     }
     DEBUG('i', "\n== Tick %d ==\n", stats->totalTicks);
 
-// check any pending interrupts are now ready to fire
+    // check any pending interrupts are now ready to fire
     ChangeLevel(IntOn, IntOff);		// first, turn off interrupts
 					// (interrupt handlers run with
 					// interrupts disabled)
@@ -171,10 +171,10 @@ Interrupt::OneTick()
     ChangeLevel(IntOff, IntOn);		// re-enable interrupts
     if (yieldOnReturn) {		// if the timer device handler asked 
 					// for a context switch, ok to do it now
-	yieldOnReturn = FALSE;
- 	status = SystemMode;		// yield is a kernel routine
-	currentThread->Yield();
-	status = old;
+        yieldOnReturn = FALSE;
+        status = SystemMode;		// yield is a kernel routine
+        currentThread->Yield();
+        status = old;
     }
 }
 
@@ -232,7 +232,7 @@ Interrupt::Idle()
     printf("Assuming the program completed.\n");
     Halt();
 }
-
+ 
 //----------------------------------------------------------------------
 // Interrupt::Halt
 // 	Shut down Nachos cleanly, printing out performance statistics.
@@ -296,26 +296,26 @@ Interrupt::CheckIfDue(bool advanceClock)
     ASSERT(level == IntOff);		// interrupts need to be disabled,
 					// to invoke an interrupt handler
     if (DebugIsEnabled('i'))
-	DumpState();
+	    DumpState();
     PendingInterrupt *toOccur = 
 		(PendingInterrupt *)pending->SortedRemove(&when);
 
     if (toOccur == NULL)		// no pending interrupts
-	return FALSE;			
+	    return FALSE;			
 
     if (advanceClock && when > stats->totalTicks) {	// advance the clock
-	stats->idleTicks += (when - stats->totalTicks);
-	stats->totalTicks = when;
+	    stats->idleTicks += (when - stats->totalTicks);
+	    stats->totalTicks = when;
     } else if (when > stats->totalTicks) {	// not time yet, put it back
-	pending->SortedInsert(toOccur, when);
-	return FALSE;
+	    pending->SortedInsert(toOccur, when);
+	    return FALSE;
     }
 
 // Check if there is nothing more to do, and if so, quit
     if ((status == IdleMode) && (toOccur->type == TimerInt) 
 				&& pending->IsEmpty()) {
-	 pending->SortedInsert(toOccur, when);
-	 return FALSE;
+	    pending->SortedInsert(toOccur, when);
+	    return FALSE;
     }
 
     DEBUG('i', "Invoking interrupt handler for the %s at time %d\n", 
