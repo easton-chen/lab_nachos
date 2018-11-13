@@ -30,7 +30,9 @@ class AddrSpace {
 
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
-
+    /* add in lab4 ex4 */
+    void cleanBitMap();
+    /* end add */
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!

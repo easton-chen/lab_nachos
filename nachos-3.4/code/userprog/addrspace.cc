@@ -71,7 +71,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-// how big is address space?
+    // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
@@ -86,11 +86,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-// first, set up the translation 
+    // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	    pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	    pageTable[i].physicalPage = i;
+        int ppn = machine->mBitMap->Find();
+        ASSERT(ppn != -1);
+	    pageTable[i].physicalPage = ppn;
 	    pageTable[i].valid = TRUE;
 	    pageTable[i].use = FALSE;
 	    pageTable[i].dirty = FALSE;
@@ -99,24 +101,50 @@ AddrSpace::AddrSpace(OpenFile *executable)
 					// pages to be read-only
     }
     
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-    bzero(machine->mainMemory, size);
+    // zero out the entire address space, to zero the unitialized data segment 
+    // and the stack segment
+    //bzero(machine->mainMemory, size);
 
-// then, copy in the code and data segments into memory
+    /* add in lab4 ex5 */
+    // to enable multi-thread, we should not zero out all the main memory
+    // but only those assigned to this thread
+    for (i = 0; i < numPages; i++) {
+        int ppn = pageTable[i].physicalPage;
+        bzero(machine->mainMemory + ppn * PageSize, PageSize);
+    }
+    /* end add */
+
+    // then, copy in the code and data segments into memory
+    /* add in lab4 ex5 */
+    // to enable multi-thread, we should load code and data to memory that assigned
+    // to this thread
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+        //executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
+		//	noffH.code.size, noffH.code.inFileAddr);
+        int pos = noffH.code.inFileAddr;
+        for(int vaddr = noffH.code.virtualAddr; vaddr < noffH.code.size + noffH.code.virtualAddr; vaddr++, pos++){
+            int vpn = vaddr / PageSize;
+            int offset = vaddr % PageSize;
+            int paddr = pageTable[vpn].physicalPage * PageSize + offset;
+            executable->ReadAt(&(machine->mainMemory[paddr]), 1, pos);
+        }
     }
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+        //executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
+		//	noffH.initData.size, noffH.initData.inFileAddr);
+        int pos = noffH.initData.inFileAddr;
+        for(int vaddr = noffH.initData.virtualAddr; vaddr < noffH.initData.size + noffH.initData.virtualAddr; vaddr++, pos++){
+            int vpn = vaddr / PageSize;
+            int offset = vaddr % PageSize;
+            int paddr = pageTable[vpn].physicalPage * PageSize + offset;
+            executable->ReadAt(&(machine->mainMemory[paddr]), 1, pos);
+        }
     }
-
+    /* end add */
 }
 
 //----------------------------------------------------------------------
@@ -126,7 +154,8 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
-   delete pageTable;
+    //printf("in ~addrspace\n");
+    delete pageTable;
 }
 
 //----------------------------------------------------------------------
@@ -145,7 +174,7 @@ AddrSpace::InitRegisters()
     int i;
 
     for (i = 0; i < NumTotalRegs; i++)
-	machine->WriteRegister(i, 0);
+	    machine->WriteRegister(i, 0);
 
     // Initial program counter -- must be location of "Start"
     machine->WriteRegister(PCReg, 0);	
@@ -167,10 +196,16 @@ AddrSpace::InitRegisters()
 //	to this address space, that needs saving.
 //
 //	For now, nothing!
+//  when switch threads, tlb should be set to invalid
+//  add in lab4 ex5
 //----------------------------------------------------------------------
 
 void AddrSpace::SaveState() 
-{}
+{
+    for(int i = 0; i < TLBSize; i++ ){
+        machine->tlb[i].valid = false;
+    }
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
@@ -184,4 +219,15 @@ void AddrSpace::RestoreState()
 {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+}
+
+//----------------------------------------
+// AddrSpace::cleanBitMap
+// when a user programme halt(exit), we should clear the bitmap
+//----------------------------------------
+void AddrSpace::cleanBitMap(){
+    for(int i = 0; i < numPages; i++){
+        int ppn = pageTable[i].physicalPage;
+        machine->mBitMap->Clear(ppn);
+    }
 }

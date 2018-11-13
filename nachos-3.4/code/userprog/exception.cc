@@ -58,6 +58,36 @@ int findReplace(int method){
     }
 }
 
+void tlbMissHandler(){
+    int badVAddr = machine->ReadRegister(BadVAddrReg);
+    unsigned int vpn = (unsigned) badVAddr / PageSize; 
+    TranslationEntry *entry = &(machine->pageTable[vpn]); // find entry in the page table
+    // TLB replace
+    int i;
+    for(i = 0; i < TLBSize; i++){
+        if(!machine->tlb[i].valid){
+            break;
+        }
+    }
+    if(i == TLBSize){
+        i = findReplace(1);
+    }
+    // restore old entry
+    //unsigned int old_vpn = machine->tlb[i].virtualPage;
+    //machine->pageTable[old_vpn].lastUse = machine->tlb[i].lastUse; 
+    // load new entry into tlb
+    machine->tlb[i].virtualPage = vpn;	// for now, virtual page # = phys page #
+    machine->tlb[i].physicalPage = entry->physicalPage;
+    machine->tlb[i].valid = true;
+    machine->tlb[i].use = false;
+    machine->tlb[i].dirty = false;
+    machine->tlb[i].readOnly = entry->readOnly;
+    machine->tlb[i].firstInTime = stats->totalTicks;
+    //machine->tlb[i].lastUse = 0;
+}
+
+
+
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -88,36 +118,13 @@ ExceptionHandler(ExceptionType which)
     //printf("which exception: %d\n", which);
     if ((which == SyscallException) && (type == SC_Halt)) {
 	    DEBUG('a', "Shutdown, initiated by user program.\n");
+        currentThread->space->cleanBitMap();
    	    interrupt->Halt();
     } 
     /* add in lab4 ex2 */
     else if(which == PageFaultException){
         if(machine->tlb != NULL){ //TLB miss
-            int badVAddr = machine->ReadRegister(BadVAddrReg);
-            unsigned int vpn = (unsigned) badVAddr / PageSize; 
-            TranslationEntry *entry = &(machine->pageTable[vpn]); // find entry in the page table
-            // TLB replace
-            int i;
-            for(i = 0; i < TLBSize; i++){
-                if(!machine->tlb[i].valid){
-                    break;
-                }
-            }
-            if(i == TLBSize){
-                i = findReplace(1);
-            }
-            // restore old entry
-            //unsigned int old_vpn = machine->tlb[i].virtualPage;
-            //machine->pageTable[old_vpn].lastUse = machine->tlb[i].lastUse; 
-            // load new entry into tlb
-            machine->tlb[i].virtualPage = vpn;	// for now, virtual page # = phys page #
-	        machine->tlb[i].physicalPage = entry->physicalPage;
-	        machine->tlb[i].valid = true;
-	        machine->tlb[i].use = false;
-	        machine->tlb[i].dirty = false;
-	        machine->tlb[i].readOnly = entry->readOnly;
-            machine->tlb[i].firstInTime = stats->totalTicks;
-            //machine->tlb[i].lastUse = 0;
+            tlbMissHandler();
         }
         else{
             printf("should not reach there\n");
