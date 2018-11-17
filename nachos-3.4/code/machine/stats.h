@@ -39,6 +39,11 @@ class Statistics {
     Statistics(); 		// initialize everything to zero
 
     void Print();		// print collected statistics
+
+    /* add in lab4 ex3 */
+    int TLBAccess;
+    int TLBHit;
+    /* end add */
 };
 
 // Constants used to reflect the relative time an operation would

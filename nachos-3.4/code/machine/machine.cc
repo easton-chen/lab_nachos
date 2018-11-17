@@ -24,7 +24,7 @@ static char* exceptionNames[] = { "no exception", "syscall",
 //	does, for storing the bytes of an integer.  Stop on error.
 //----------------------------------------------------------------------
 
-static
+static 
 void CheckEndian()
 {
     union checkit {
@@ -51,7 +51,7 @@ void CheckEndian()
 //	"debug" -- if TRUE, drop into the debugger after each user instruction
 //		is executed.
 //----------------------------------------------------------------------
-
+ 
 Machine::Machine(bool debug)
 {
     int i;
@@ -64,15 +64,28 @@ Machine::Machine(bool debug)
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
     for (i = 0; i < TLBSize; i++)
-	tlb[i].valid = FALSE;
+	    tlb[i].valid = FALSE;
     pageTable = NULL;
+    printf("use tlb\n");
 #else	// use linear page table
-    tlb = NULL;
+    tlb = NULL;  
     pageTable = NULL;
-#endif
+#endif 
 
     singleStep = debug;
     CheckEndian();
+
+    /* add in lab4 ex4 */
+    mBitMap = new BitMap(NumPhysPages);
+    /* end add */
+
+    /* add in lab4 ch2 */
+    invertedTable = new TranslationEntry[NumPhysPages];
+    for(i = 0; i < NumPhysPages; i++){
+        invertedTable[i].physicalPage = i;
+        invertedTable[i].valid = FALSE;     
+    }
+    /* end add */
 }
 
 //----------------------------------------------------------------------
@@ -200,15 +213,15 @@ Machine::DumpState()
 //----------------------------------------------------------------------
 
 int Machine::ReadRegister(int num)
-    {
+{
 	ASSERT((num >= 0) && (num < NumTotalRegs));
 	return registers[num];
-    }
+}
 
 void Machine::WriteRegister(int num, int value)
-    {
+{
 	ASSERT((num >= 0) && (num < NumTotalRegs));
 	// DEBUG('m', "WriteRegister %d, value %d\n", num, value);
 	registers[num] = value;
-    }
+}
 

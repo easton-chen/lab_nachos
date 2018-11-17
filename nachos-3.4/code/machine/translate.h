@@ -28,18 +28,25 @@
 // read-only) and some bits for usage information (use and dirty).
 
 class TranslationEntry {
-  public:
-    int virtualPage;  	// The page number in virtual memory.
-    int physicalPage;  	// The page number in real memory (relative to the
+    public:
+    	int virtualPage;  	// The page number in virtual memory.
+     	int physicalPage;  	// The page number in real memory (relative to the
 			//  start of "mainMemory"
-    bool valid;         // If this bit is set, the translation is ignored.
+      	bool valid;         // If this bit is set, the translation is ignored.
 			// (In other words, the entry hasn't been initialized.)
-    bool readOnly;	// If this bit is set, the user program is not allowed
+      	bool readOnly;	// If this bit is set, the user program is not allowed
 			// to modify the contents of the page.
-    bool use;           // This bit is set by the hardware every time the
+      	bool use;           // This bit is set by the hardware every time the
 			// page is referenced or modified.
-    bool dirty;         // This bit is set by the hardware every time the
+      	bool dirty;         // This bit is set by the hardware every time the
 			// page is modified.
+		/* add in lab4 ex3 */
+		int firstInTime = 0; 			// indicate when does the entry go into TLB
+		int lastUse = 0;		// indicate the most recent use of this page
+		/* end add */
+		#ifdef USE_INV
+		int threadID;
+		#endif
 };
 
 #endif

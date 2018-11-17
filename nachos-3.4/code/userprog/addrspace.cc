@@ -67,10 +67,15 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
-		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
+		(WordToHost(noffH.noffMagic) == NOFFMAGIC)){
     	SwapHeader(&noffH);
+        printf("swap\n");
+    }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
+    //printf("code:\ninFileAddr:%u\tvaddr:%u\tsize:%u\n",noffH.code.inFileAddr,noffH.code.virtualAddr,noffH.code.size);
+    //printf("initData:\ninFileAddr:%u\tvaddr:%u\tsize:%u\n",noffH.initData.inFileAddr,noffH.initData.virtualAddr,noffH.initData.size);
+    //printf("uninitData:\ninFileAddr:%u\tvaddr:%u\tsize:%u\n",noffH.uninitData.inFileAddr,noffH.uninitData.virtualAddr,noffH.uninitData.size);
     // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
@@ -79,7 +84,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     size = numPages * PageSize;
     //printf("numpages:%d\n",numPages);
 
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
+    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
@@ -90,10 +95,15 @@ AddrSpace::AddrSpace(OpenFile *executable)
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	    pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
+        /* modify in lab4 ex6 */
+        /* lazy loading*/
+        /*
         int ppn = machine->mBitMap->Find();
         ASSERT(ppn != -1);
 	    pageTable[i].physicalPage = ppn;
 	    pageTable[i].valid = TRUE;
+        */
+        pageTable[i].valid = FALSE;
 	    pageTable[i].use = FALSE;
 	    pageTable[i].dirty = FALSE;
 	    pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
@@ -108,6 +118,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     /* add in lab4 ex5 */
     // to enable multi-thread, we should not zero out all the main memory
     // but only those assigned to this thread
+    
     for (i = 0; i < numPages; i++) {
         int ppn = pageTable[i].physicalPage;
         bzero(machine->mainMemory + ppn * PageSize, PageSize);
@@ -118,11 +129,14 @@ AddrSpace::AddrSpace(OpenFile *executable)
     /* add in lab4 ex5 */
     // to enable multi-thread, we should load code and data to memory that assigned
     // to this thread
+    /* modify in lab4 ex6 lazy loading*/
+    /*
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
         //executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
 		//	noffH.code.size, noffH.code.inFileAddr);
+        
         int pos = noffH.code.inFileAddr;
         for(int vaddr = noffH.code.virtualAddr; vaddr < noffH.code.size + noffH.code.virtualAddr; vaddr++, pos++){
             int vpn = vaddr / PageSize;
@@ -143,6 +157,20 @@ AddrSpace::AddrSpace(OpenFile *executable)
             int paddr = pageTable[vpn].physicalPage * PageSize + offset;
             executable->ReadAt(&(machine->mainMemory[paddr]), 1, pos);
         }
+    }*/
+    fakeDisk = new char[MemorySize];
+    bzero(fakeDisk, MemorySize);
+    if (noffH.code.size > 0) {
+        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+			noffH.code.virtualAddr, noffH.code.size);
+        executable->ReadAt(&(fakeDisk[noffH.code.virtualAddr]),
+			noffH.code.size, noffH.code.inFileAddr);
+    }
+    if (noffH.initData.size > 0) {
+        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
+			noffH.initData.virtualAddr, noffH.initData.size);
+        executable->ReadAt(&(fakeDisk[noffH.initData.virtualAddr]),
+			noffH.initData.size, noffH.initData.inFileAddr);
     }
     /* end add */
 }
@@ -156,6 +184,7 @@ AddrSpace::~AddrSpace()
 {
     //printf("in ~addrspace\n");
     delete pageTable;
+    delete fakeDisk;
 }
 
 //----------------------------------------------------------------------
@@ -202,6 +231,7 @@ AddrSpace::InitRegisters()
 
 void AddrSpace::SaveState() 
 {
+    //printf("in addr save state\n");
     for(int i = 0; i < TLBSize; i++ ){
         machine->tlb[i].valid = false;
     }
@@ -224,10 +254,13 @@ void AddrSpace::RestoreState()
 //----------------------------------------
 // AddrSpace::cleanBitMap
 // when a user programme halt(exit), we should clear the bitmap
+// add in lab4 ex4
 //----------------------------------------
 void AddrSpace::cleanBitMap(){
     for(int i = 0; i < numPages; i++){
-        int ppn = pageTable[i].physicalPage;
-        machine->mBitMap->Clear(ppn);
+        if(pageTable[i].valid){
+            int ppn = pageTable[i].physicalPage;
+            machine->mBitMap->Clear(ppn);
+        }
     }
 }

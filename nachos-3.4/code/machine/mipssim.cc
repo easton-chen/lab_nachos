@@ -38,9 +38,11 @@ Machine::Run()
     interrupt->setStatus(UserMode);
     for (;;) {
         OneInstruction(instr);
-	interrupt->OneTick();
-	if (singleStep && (runUntilTime <= stats->totalTicks))
-	  Debugger();
+		
+		
+		interrupt->OneTick();
+		if (singleStep && (runUntilTime <= stats->totalTicks))
+	  		Debugger();
     }
 }
 
@@ -99,10 +101,14 @@ Machine::OneInstruction(Instruction *instr)
 				// in the future
 
     // Fetch instruction 
-    if (!machine->ReadMem(registers[PCReg], 4, &raw))
-	return;			// exception occurred
+    if (!machine->ReadMem(registers[PCReg], 4, &raw)){
+		return;			// exception occurred
+	}
     instr->value = raw;
     instr->Decode();
+
+	//printf("instr:%x\n",instr->value);
+	//printf("inst opcode:%x rs:%x imm:%x\n", instr->opCode, instr->rs, instr->extra) ;
 
     if (DebugIsEnabled('m')) {
        struct OpString *str = &opStrings[instr->opCode];
@@ -560,8 +566,10 @@ Machine::OneInstruction(Instruction *instr)
     // Advance program counters.
     registers[PrevPCReg] = registers[PCReg];	// for debugging, in case we
 						// are jumping into lala-land
+	
     registers[PCReg] = registers[NextPCReg];
     registers[NextPCReg] = pcAfter;
+	
 }
 
 //----------------------------------------------------------------------

@@ -25,6 +25,7 @@
 #include "utility.h"
 #include "translate.h"
 #include "disk.h"
+#include "bitmap.h"
 
 // Definitions related to the size, and format of user memory
 
@@ -32,7 +33,7 @@
 					// the disk sector size, for
 					// simplicity
 
-#define NumPhysPages    32
+#define NumPhysPages   16
 #define MemorySize 	(NumPhysPages * PageSize)
 #define TLBSize		4		// if there is a TLB, make it small
 
@@ -48,7 +49,7 @@ enum ExceptionType { NoException,           // Everything ok!
 					    // address space
 		     OverflowException,     // Integer overflow in add or sub.
 		     IllegalInstrException, // Unimplemented or reserved instr.
-		     
+		     TLBMissException,
 		     NumExceptionTypes
 };
 
@@ -182,6 +183,12 @@ class Machine {
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
+	/* add in lab4 ex4 */
+	BitMap *mBitMap;
+	/* end add */
+	/* add in lab4 ch2 */
+	TranslationEntry *invertedTable;
+	/* end add */
   private:
     bool singleStep;		// drop back into the debugger after each
 				// simulated instruction

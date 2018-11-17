@@ -24,7 +24,9 @@
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
+#include "noff.h"
 
+void pageFaultHandler();
 //----------------------------------------------------------------------
 // TLB replacement 
 // if TLB is full, find one entry which is less likely to be used in the 
@@ -60,7 +62,9 @@ int findReplace(int method){
 
 void tlbMissHandler(){
     int badVAddr = machine->ReadRegister(BadVAddrReg);
-    unsigned int vpn = (unsigned) badVAddr / PageSize; 
+    unsigned int vpn = (unsigned) badVAddr / PageSize;
+    if(machine->pageTable[vpn].valid == FALSE)
+        pageFaultHandler(); 
     TranslationEntry *entry = &(machine->pageTable[vpn]); // find entry in the page table
     // TLB replace
     int i;
@@ -73,8 +77,8 @@ void tlbMissHandler(){
         i = findReplace(1);
     }
     // restore old entry
-    //unsigned int old_vpn = machine->tlb[i].virtualPage;
-    //machine->pageTable[old_vpn].lastUse = machine->tlb[i].lastUse; 
+    unsigned int old_vpn = machine->tlb[i].virtualPage;
+    machine->pageTable[old_vpn].dirty = machine->tlb[i].dirty; 
     // load new entry into tlb
     machine->tlb[i].virtualPage = vpn;	// for now, virtual page # = phys page #
     machine->tlb[i].physicalPage = entry->physicalPage;
@@ -86,7 +90,77 @@ void tlbMissHandler(){
     //machine->tlb[i].lastUse = 0;
 }
 
+//----------------------------------------------------------------------
+// page fault handler
+// if there is enough space in memory, load page into physical memory
+// if not, replace a page
+// add in lab4 ex6
+//----------------------------------------------------------------------
 
+void pageFaultHandler(){
+    printf("page fault\n");
+    unsigned int badVAddr = machine->ReadRegister(BadVAddrReg);
+    printf("bad vaddr:%u\n",badVAddr);
+    int vpn = (unsigned) badVAddr / PageSize;
+    //int offset = (unsigned) badVAddr % PageSize;
+    #ifndef USE_INV
+    int ppn = machine->mBitMap->Find(); // find if there exists empty pages
+    if(ppn == -1){
+        // should replace a page
+        int i, vpn_old;
+        int t = stats->totalTicks + 1;
+        for(i = 0; i < machine->pageTableSize; i++){
+            if(machine->pageTable[i].valid && machine->pageTable[i].lastUse < t){
+                t = machine->pageTable[i].lastUse;
+                vpn_old = i;
+            }
+        }    
+        printf("replace page %d\n", vpn_old);
+        ppn = machine->pageTable[vpn_old].physicalPage;
+        // disable the old one, if modified, write back
+        machine->pageTable[vpn_old].valid = FALSE;
+        if(machine->pageTable[vpn_old].dirty == TRUE){
+            printf("write back\n");
+            memcpy(&(currentThread->space->fakeDisk[vpn_old * PageSize]), &(machine->mainMemory[ppn * PageSize]), PageSize);
+        }
+        //ASSERT(FALSE);
+    }
+    machine->pageTable[vpn].physicalPage = ppn;
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].dirty = FALSE;
+    #endif
+    #ifdef USE_INV
+    int ppn = -1, i;
+    for(i = 0; i < NumPhysPages; i++){
+        if(machine->invertedTable[i].valid == FALSE){
+            ppn = i;
+            break;
+        }
+    }  
+    if(ppn == -1){
+        int t = stats->totalTicks + 1;
+        for(i = 0; i < NumPhysPages; i++){
+            if(machine->invertedTable[i].lastUse < t 
+                && machine->invertedTable[i].threadID == currentThread->getThreadID()){
+                t = machine->invertedTable[i].lastUse;
+                ppn = i;
+            }
+        }
+        if(machine->invertedTable[ppn].dirty == TRUE){
+            int vpn_old = machine->invertedTable[ppn].virtualPage;
+            memcpy(&(currentThread->space->fakeDisk[vpn_old * PageSize]), &(machine->mainMemory[ppn * PageSize]), PageSize); 
+        }
+    }
+    machine->invertedTable[ppn].virtualPage = vpn;
+    machine->invertedTable[ppn].valid = TRUE;
+    machine->invertedTable[ppn].threadID = currentThread->getThreadID();
+
+    #endif
+    //load into memory
+    int paddr = ppn * PageSize;
+    memcpy(&(machine->mainMemory[paddr]), &(currentThread->space->fakeDisk[vpn * PageSize]), PageSize);
+
+}
 
 //----------------------------------------------------------------------
 // ExceptionHandler
@@ -122,13 +196,21 @@ ExceptionHandler(ExceptionType which)
    	    interrupt->Halt();
     } 
     /* add in lab4 ex2 */
+    /* add in lab4 ex6 */
     else if(which == PageFaultException){
+        /*
         if(machine->tlb != NULL){ //TLB miss
             tlbMissHandler();
         }
         else{
-            printf("should not reach there\n");
+            //printf("should not reach there\n");
+            pageFaultHandler();
         }
+        */
+        pageFaultHandler();
+    }
+    else if (which == TLBMissException){
+        tlbMissHandler();
     }
     /* end add */
     else {

@@ -22,14 +22,17 @@ Statistics::Statistics()
     numDiskReads = numDiskWrites = 0;
     numConsoleCharsRead = numConsoleCharsWritten = 0;
     numPageFaults = numPacketsSent = numPacketsRecvd = 0;
-}
+    /* add in lab4 ex3 */
+    TLBAccess = TLBHit = 0;
+    /* end add */
+} 
 
 //----------------------------------------------------------------------
 // Statistics::Print
 // 	Print performance metrics, when we've finished everything
 //	at system shutdown.
 //----------------------------------------------------------------------
-
+ 
 void
 Statistics::Print()
 {
@@ -41,4 +44,8 @@ Statistics::Print()
     printf("Paging: faults %d\n", numPageFaults);
     printf("Network I/O: packets received %d, sent %d\n", numPacketsRecvd, 
 	numPacketsSent);
-}
+    #ifdef USE_TLB
+    printf("TLB access: %d, TLB hit: %d, hit rate: %f\n", TLBAccess, TLBHit, (float)TLBHit/(float)TLBAccess);
+    #endif
+} 
+ 

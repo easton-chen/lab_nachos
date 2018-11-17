@@ -57,7 +57,7 @@ Scheduler::ReadyToRun (Thread *thread)
 
     thread->setStatus(READY);
     /* add in lab2 ch1 */
-    thread->setTimeSliceLeft(5);
+    thread->setTimeSliceLeft(MAX_TIMESLICE);
     /* end add */
     //readyList->Append((void *)thread);
     /* add in lab2 ex3 */
@@ -103,7 +103,7 @@ Scheduler::Run (Thread *nextThread)
 #ifdef USER_PROGRAM			// ignore until running user programs 
     if (currentThread->space != NULL) {	// if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
-	currentThread->space->SaveState();
+	    currentThread->space->SaveState();
     }
 #endif
     

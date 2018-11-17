@@ -33,6 +33,11 @@ class AddrSpace {
     /* add in lab4 ex4 */
     void cleanBitMap();
     /* end add */
+    /* add in lab4 ex6 */
+    // to deal with disk that has not been impliemented
+    char* fakeDisk;
+    int getNumPages(){ return numPages; }
+    /* end add */
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!

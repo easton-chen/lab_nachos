@@ -61,7 +61,7 @@ extern void Cleanup();
 static void
 TimerInterruptHandler(int dummy)
 {
-    printf("time interrupt!\n"); // for test
+    //printf("time interrupt!\n"); // for test
     currentThread->setTimeSliceLeft(currentThread->getTimeSliceLeft() - 1);
     if (interrupt->getStatus() != IdleMode)
 	    interrupt->YieldOnReturn();
@@ -148,7 +148,8 @@ Initialize(int argc, char **argv)
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state. 
-    currentThread = new Thread("main");		
+    currentThread = new Thread("main");
+    currentThread->setTimeSliceLeft(MAX_TIMESLICE);		
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();

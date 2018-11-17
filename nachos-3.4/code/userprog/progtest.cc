@@ -19,6 +19,27 @@
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
 //----------------------------------------------------------------------
+void runUserProg(int which){
+    printf("in new thread!\n");
+    OpenFile *executable = fileSystem->Open("../test/halt");
+    AddrSpace *space;
+    if (executable == NULL) {
+	    printf("Unable to open file\n");
+	    return;
+    }
+    space = new AddrSpace(executable);    
+    currentThread->space = space;
+
+    delete executable;			// close file
+
+    space->InitRegisters();		// set the initial register values
+    space->RestoreState();		// load page table register
+    
+    machine->Run();			// jump to the user progam
+    //ASSERT(FALSE);			// machine->Run never returns;
+					// the address space exits
+					// by doing the syscall "exit"
+}
 
 void
 StartProcess(char *filename)
@@ -30,6 +51,7 @@ StartProcess(char *filename)
 	    printf("Unable to open file %s\n", filename);
 	    return;
     }
+    
     space = new AddrSpace(executable);    
     currentThread->space = space;
 
@@ -39,10 +61,12 @@ StartProcess(char *filename)
     space->RestoreState();		// load page table register
 
     /* add in lab4 ex5 */
-    // fork a new thread for testing
+    
+    Thread* nt = new Thread("new thread");
+    nt->Fork(runUserProg, (void*)nt->getThreadID());
     
     /* end add */
-
+    //printf("in main!\n");
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
