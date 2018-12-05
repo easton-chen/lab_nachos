@@ -38,21 +38,22 @@ Copy(char *from, char *to)
 
 // Open UNIX file
     if ((fp = fopen(from, "r")) == NULL) {	 
-	printf("Copy: couldn't open input file %s\n", from);
-	return;
+	    printf("Copy: couldn't open input file %s\n", from);
+	    return;
     }
 
 // Figure out length of UNIX file
     fseek(fp, 0, 2);		
     fileLength = ftell(fp);
     fseek(fp, 0, 0);
+    printf("file length:%x\n",fileLength);
 
 // Create a Nachos file of the same length
     DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
     if (!fileSystem->Create(to, fileLength)) {	 // Create Nachos file
-	printf("Copy: couldn't create output file %s\n", to);
-	fclose(fp);
-	return;
+	    printf("Copy: couldn't create output file %s\n", to);
+	    fclose(fp);
+	    return;
     }
     
     openFile = fileSystem->Open(to);
@@ -94,6 +95,22 @@ Print(char *name)
 
     delete openFile;		// close the Nachos file
     return;
+}
+
+void testPipeWrite()
+{
+    char strIn[SectorSize];
+    printf("input:\n");
+    scanf("%s",strIn);
+    fileSystem->WriteToPipe(strIn);
+}
+
+void testPipeRead()
+{
+    char strOut[SectorSize];
+    int length = fileSystem->ReadFromPipe(strOut);
+    strOut[length] = '\0';
+    printf("output:\n%s\n",strOut);
 }
 
 //----------------------------------------------------------------------

@@ -15,6 +15,7 @@
 #include "filehdr.h"
 #include "openfile.h"
 #include "system.h"
+
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
@@ -76,6 +77,11 @@ OpenFile::Read(char *into, int numBytes)
 {
    int result = ReadAt(into, numBytes, seekPosition);
    seekPosition += result;
+   /* add in lab5 ex2 */
+   time_t nowTime;
+   time(&nowTime);
+   hdr->lastUseTime = nowTime;
+   /* end add */
    return result;
 }
 
@@ -84,6 +90,12 @@ OpenFile::Write(char *into, int numBytes)
 {
    int result = WriteAt(into, numBytes, seekPosition);
    seekPosition += result;
+   /* add in lab5 ex2 */
+   time_t nowTime;
+   time(&nowTime);
+   hdr->lastUseTime = nowTime;
+   hdr->lastModifyTime = nowTime;
+   /* end add */
    return result;
 }
 
@@ -123,7 +135,7 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
     if ((numBytes <= 0) || (position >= fileLength))
     	return 0; 				// check request
     if ((position + numBytes) > fileLength)		
-	numBytes = fileLength - position;
+	    numBytes = fileLength - position;
     DEBUG('f', "Reading %d bytes at %d, from file of length %d.\n", 	
 			numBytes, position, fileLength);
 
@@ -152,9 +164,9 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     char *buf;
 
     if ((numBytes <= 0) || (position >= fileLength))
-	return 0;				// check request
+	    return 0;				// check request
     if ((position + numBytes) > fileLength)
-	numBytes = fileLength - position;
+	    numBytes = fileLength - position;
     DEBUG('f', "Writing %d bytes at %d, from file of length %d.\n", 	
 			numBytes, position, fileLength);
 
@@ -167,17 +179,17 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     firstAligned = (position == (firstSector * SectorSize));
     lastAligned = ((position + numBytes) == ((lastSector + 1) * SectorSize));
 
-// read in first and last sector, if they are to be partially modified
+    // read in first and last sector, if they are to be partially modified
     if (!firstAligned)
         ReadAt(buf, SectorSize, firstSector * SectorSize);	
     if (!lastAligned && ((firstSector != lastSector) || firstAligned))
         ReadAt(&buf[(lastSector - firstSector) * SectorSize], 
 				SectorSize, lastSector * SectorSize);	
 
-// copy in the bytes we want to change 
+    // copy in the bytes we want to change 
     bcopy(from, &buf[position - (firstSector * SectorSize)], numBytes);
 
-// write modified sectors back
+    // write modified sectors back
     for (i = firstSector; i <= lastSector; i++)	
         synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize), 
 					&buf[(i - firstSector) * SectorSize]);
@@ -194,4 +206,9 @@ int
 OpenFile::Length() 
 { 
     return hdr->FileLength(); 
+}
+
+void OpenFile::Print()
+{
+    hdr->Print();
 }

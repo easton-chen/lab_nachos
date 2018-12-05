@@ -64,6 +64,8 @@ extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
+extern void testPipeRead(),testPipeWrite();
+
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.  
@@ -86,8 +88,9 @@ main(int argc, char **argv)
 
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
-    
+    /* for file sys to work 
 #ifdef THREADS
+	
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
       	argCount = 1;
       	switch (argv[0][1]) {
@@ -106,30 +109,33 @@ main(int argc, char **argv)
     }
 
     ThreadTest();
+	
 #endif
-
+	*/
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
-	argCount = 1;
+		argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
-	    ASSERT(argc > 1);
+	    	ASSERT(argc > 1);
             StartProcess(*(argv + 1));
             argCount = 2;
-        } else if (!strcmp(*argv, "-c")) {      // test the console
-	    if (argc == 1)
-	        ConsoleTest(NULL, NULL);
-	    else {
-		ASSERT(argc > 2);
-	        ConsoleTest(*(argv + 1), *(argv + 2));
-	        argCount = 3;
-	    }
-	    interrupt->Halt();		// once we start the console, then 
+        } 
+		else if (!strcmp(*argv, "-c")) {      // test the console
+	    	if (argc == 1)
+	        	ConsoleTest(NULL, NULL);
+	    	else {
+				ASSERT(argc > 2);
+				ConsoleTest(*(argv + 1), *(argv + 2));
+				argCount = 3;
+	    	}
+	    	interrupt->Halt();		// once we start the console, then 
 					// Nachos will loop forever waiting 
 					// for console input
-	}
+		}
 #endif // USER_PROGRAM
+
 #ifdef FILESYS
 	if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
 	    ASSERT(argc > 2);
@@ -149,6 +155,9 @@ main(int argc, char **argv)
             fileSystem->Print();
 	} else if (!strcmp(*argv, "-t")) {	// performance test
             PerformanceTest();
+	} else if (!strcmp(*argv, "-pipe")){
+			testPipeWrite();
+			testPipeRead();
 	}
 #endif // FILESYS
 #ifdef NETWORK

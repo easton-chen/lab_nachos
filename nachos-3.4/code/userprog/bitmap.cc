@@ -98,7 +98,7 @@ BitMap::Find()
     for (int i = 0; i < numBits; i++)
         if (!Test(i)) {
             Mark(i);
-            printf("allocate page %d\n", i);
+            //printf("allocate page %d\n", i);
             return i;
         }
     return -1;

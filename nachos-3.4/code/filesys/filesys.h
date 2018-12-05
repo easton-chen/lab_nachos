@@ -37,6 +37,7 @@
 
 #include "copyright.h"
 #include "openfile.h"
+#include "filehdr.h"
 
 #ifdef FILESYS_STUB 		// Temporarily implement file system calls as 
 				// calls to UNIX, until the real file system
@@ -46,19 +47,19 @@ class FileSystem {
     FileSystem(bool format) {}
 
     bool Create(char *name, int initialSize) { 
-	int fileDescriptor = OpenForWrite(name);
+		int fileDescriptor = OpenForWrite(name);
 
-	if (fileDescriptor == -1) return FALSE;
-	Close(fileDescriptor); 
-	return TRUE; 
+		if (fileDescriptor == -1) return FALSE;
+		Close(fileDescriptor); 
+		return TRUE; 
 	}
 
     OpenFile* Open(char *name) {
-	  int fileDescriptor = OpenForReadWrite(name, FALSE);
+	  	int fileDescriptor = OpenForReadWrite(name, FALSE);
 
-	  if (fileDescriptor == -1) return NULL;
-	  return new OpenFile(fileDescriptor);
-      }
+	  	if (fileDescriptor == -1) return NULL;
+	  	return new OpenFile(fileDescriptor);
+    }
 
     bool Remove(char *name) { return Unlink(name) == 0; }
 
@@ -74,7 +75,7 @@ class FileSystem {
 					// the disk, so initialize the directory
     					// and the bitmap of free blocks.
 
-    bool Create(char *name, int initialSize);  	
+    bool Create(char *name, int initialSize, FileType type = REG_FILE);  	
 					// Create a file (UNIX creat)
 
     OpenFile* Open(char *name); 	// Open a file (UNIX open)
@@ -85,11 +86,18 @@ class FileSystem {
 
     void Print();			// List all the files and their contents
 
+	/* add in lab5 ch2*/
+	int ReadFromPipe(char* data);
+	void WriteToPipe(char* data);
+	/* end add */
+
   private:
-   OpenFile* freeMapFile;		// Bit map of free disk blocks,
+   	OpenFile* freeMapFile;		// Bit map of free disk blocks,
 					// represented as a file
-   OpenFile* directoryFile;		// "Root" directory -- list of 
+   	OpenFile* directoryFile;		// "Root" directory -- list of 
 					// file names, represented as a file
+	// add in lab5 ex2
+	//OpenFile* fileNameFile;		// a file that stores all the files' name 
 };
 
 #endif // FILESYS

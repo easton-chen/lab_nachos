@@ -44,10 +44,39 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
     if (freeMap->NumClear() < numSectors)
-	return FALSE;		// not enough space
+	    return FALSE;		// not enough space
+    
+    /* add in lab5 ex3 */
+    if(numSectors <= NumDirect - 1){
+        for (int i = 0; i < numSectors; i++){
+	        dataSectors[i] = freeMap->Find();
+            printf("no.%d allocate %d sector\n",i, dataSectors[i]);
+        }
+    }
+    else {
+        for (int i = 0; i < NumDirect - 1; i++){
+	        dataSectors[i] = freeMap->Find();
+            printf("no.%d allocate %d sector\n",i, dataSectors[i]);
+        }
+        int secondDirect[NumDirectInOneSector];
+        dataSectors[NumDirect - 1] = freeMap->Find();
+        for(int i = 0 ; i < numSectors - NumDirect + 1; i++){
+            secondDirect[i] = freeMap->Find();
+            printf("no.%d allocate %d sector\n",i + NumDirect - 1, secondDirect[i]);
+        }
+        synchDisk->WriteSector(dataSectors[NumDirect - 1], (char*)secondDirect);
+        /*int *test = new int[NumDirectInOneSector];
+        synchDisk->ReadSector(dataSectors[NumDirect - 1], (char*)test);
+        printf("test:%d\n",test[0]);*/
+    }
+    
+    /* end add */
 
-    for (int i = 0; i < numSectors; i++)
-	dataSectors[i] = freeMap->Find();
+    /*
+    for (int i = 0; i < numSectors; i++){
+	    dataSectors[i] = freeMap->Find();
+        printf("no.%d allocate %d sector\n",i, dataSectors[i]);
+    }*/
     return TRUE;
 }
 
@@ -60,11 +89,28 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 
 void 
 FileHeader::Deallocate(BitMap *freeMap)
-{
-    for (int i = 0; i < numSectors; i++) {
-	ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-	freeMap->Clear((int) dataSectors[i]);
+{   
+    /* mod in lab5 ex3*/
+    if(numSectors <= NumDirect -1){
+        for (int i = 0; i < numSectors; i++) {
+	        ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+	        freeMap->Clear((int) dataSectors[i]);
+        }
     }
+    else{
+        for (int i = 0; i < NumDirect - 1; i++) {
+	        ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+	        freeMap->Clear((int) dataSectors[i]);
+        }
+        int* secondDirect = new int[NumDirectInOneSector];
+        synchDisk->ReadSector(dataSectors[NumDirect - 1], (char*)secondDirect);
+        for(int i = 0; i < numSectors - NumDirect + 1; i++){
+            ASSERT(freeMap->Test((int) secondDirect[i]));  // ought to be marked!
+	        freeMap->Clear((int) secondDirect[i]);
+        }
+    }
+    
+    /* end mod */
 }
 
 //----------------------------------------------------------------------
@@ -106,7 +152,19 @@ FileHeader::WriteBack(int sector)
 int
 FileHeader::ByteToSector(int offset)
 {
-    return(dataSectors[offset / SectorSize]);
+    /*add in lab5 ex3*/
+    int maxOffset = (NumDirect - 1) * SectorSize;   //should be 3200 for now
+    if(offset < maxOffset)
+        return(dataSectors[offset / SectorSize]);
+    else{
+        int *secondDirect = new int[NumDirectInOneSector];
+        synchDisk->ReadSector(dataSectors[NumDirect - 1], (char*)secondDirect);
+        int sectorInFile = offset / SectorSize;
+        //printf("sector in file:%d\n",sectorInFile);
+        return secondDirect[sectorInFile - NumDirect + 1];
+    }
+    /*end add*/
+    //return(dataSectors[offset / SectorSize]);
 }
 
 //----------------------------------------------------------------------
@@ -133,18 +191,102 @@ FileHeader::Print()
     char *data = new char[SectorSize];
 
     printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
-    for (i = 0; i < numSectors; i++)
-	printf("%d ", dataSectors[i]);
-    printf("\nFile contents:\n");
-    for (i = k = 0; i < numSectors; i++) {
-	synchDisk->ReadSector(dataSectors[i], data);
-        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-	    if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
-		printf("%c", data[j]);
-            else
-		printf("\\%x", (unsigned char)data[j]);
-	}
-        printf("\n"); 
+    /*mod in lab5 ex3*/
+    bool useSecondDirect = false;
+    int *secondDirect;
+    if(numSectors > NumDirect - 1){ // file is big, has used second direct
+        useSecondDirect = true;
+        secondDirect = new int[NumDirectInOneSector];
+       // printf("datasector[25]=%d\n",dataSectors[NumDirect - 1]);
+        synchDisk->ReadSector(dataSectors[NumDirect - 1], (char*)secondDirect);
+       // printf("secondDirect[0]=%d\n",secondDirect[0]);
     }
+    if(!useSecondDirect){
+        for (i = 0; i < numSectors; i++)
+	        printf("no.%d data sectoer:%d \n", i, dataSectors[i]);
+    }
+    else{
+        for (i = 0; i < NumDirect - 1; i++)
+	        printf("no.%d data sectoer:%d \n", i, dataSectors[i]);
+        
+        for(i = 0; i < numSectors - NumDirect + 1; i++){
+            printf("no.%d data sectoer:%d \n", i + NumDirect - 1, secondDirect[i]);
+        }
+    }
+    /*end mod*/
+    printf("\nFile type: %d", type);
+    printf("\nCreate Time:%d\nLast Use Time:%d\nLast Modify Time:%d", 
+        createTime, lastUseTime, lastModifyTime);
+    printf("\nFile contents:\n");
+    //printf("numDirect:%d",NumDirect);
+    /*mod in lab5 ex3*/
+    if(!useSecondDirect){
+        for (i = k = 0; i < numSectors; i++) {
+            synchDisk->ReadSector(dataSectors[i], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
+                if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+                    printf("%c", data[j]);
+                else
+                    printf("\\%x", (unsigned char)data[j]);
+            }
+            printf("\n"); 
+        }
+    }
+    else{
+        for (i = k = 0; i < NumDirect - 1; i++) {
+            printf("sector %d\n",i);
+            synchDisk->ReadSector(dataSectors[i], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
+                if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+                    printf("%c", data[j]);
+                else
+                    printf("\\%x", (unsigned char)data[j]);
+            }
+            printf("\n"); 
+        }
+        // second direct
+        for(i = 0; i < numSectors - NumDirect + 1; i++){
+            printf("sector %d\n",i + NumDirect - 1);
+            synchDisk->ReadSector(secondDirect[i], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
+                if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+                    printf("%c", data[j]);
+                else
+                    printf("\\%x", (unsigned char)data[j]);
+            }
+            printf("\n"); 
+        }
+    }
+    /*end mod*/
     delete [] data;
 }
+
+/* add in lab5 ex5 */
+/* append file length*/
+bool FileHeader::Append(BitMap *bitmap, int extraLength)
+{
+    numBytes += extraLength;
+    if(numBytes > MaxFileSize)
+        return false;
+    int oldNumSectors = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    if(oldNumSectors == numSectors)
+        return true;
+    else if(bitmap->NumClear() < numSectors - oldNumSectors)
+        return false;
+    else{
+        // allocate new space
+        if(numSectors < NumDirect - 1){
+
+        }
+        else if(oldNumSectors > NumDirect - 1){
+
+        }
+        else{
+
+        }
+        return true;
+    }
+
+}
+/* end add */
