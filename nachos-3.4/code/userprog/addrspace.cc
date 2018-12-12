@@ -232,8 +232,10 @@ AddrSpace::InitRegisters()
 void AddrSpace::SaveState() 
 {
     //printf("in addr save state\n");
-    for(int i = 0; i < TLBSize; i++ ){
-        machine->tlb[i].valid = false;
+    if(machine->tlb != NULL){
+        for(int i = 0; i < TLBSize; i++ ){
+            machine->tlb[i].valid = false;
+        }
     }
 }
 

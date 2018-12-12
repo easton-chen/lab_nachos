@@ -225,3 +225,13 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
 }
 
+//---------------------------------
+// machine::changePC
+// when call a syscall, we should advance PC by 4
+// add in lab6
+//----------------------------------
+void Machine::changePC(){
+    WriteRegister(PrevPCReg, registers[PCReg]);
+    WriteRegister(PCReg, registers[PCReg] + 4);
+    WriteRegister(NextPCReg, registers[NextPCReg] + 4); 
+}

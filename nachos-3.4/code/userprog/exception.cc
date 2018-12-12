@@ -27,6 +27,7 @@
 #include "noff.h"
 
 void pageFaultHandler();
+
 //----------------------------------------------------------------------
 // TLB replacement 
 // if TLB is full, find one entry which is less likely to be used in the 
@@ -98,9 +99,9 @@ void tlbMissHandler(){
 //----------------------------------------------------------------------
 
 void pageFaultHandler(){
-    printf("page fault\n");
+    //printf("page fault\n");
     unsigned int badVAddr = machine->ReadRegister(BadVAddrReg);
-    printf("bad vaddr:%u\n",badVAddr);
+    //printf("bad vaddr:%u\n",badVAddr);
     int vpn = (unsigned) badVAddr / PageSize;
     //int offset = (unsigned) badVAddr % PageSize;
     #ifndef USE_INV
@@ -115,12 +116,12 @@ void pageFaultHandler(){
                 vpn_old = i;
             }
         }    
-        printf("replace page %d\n", vpn_old);
+        //printf("replace page %d\n", vpn_old);
         ppn = machine->pageTable[vpn_old].physicalPage;
         // disable the old one, if modified, write back
         machine->pageTable[vpn_old].valid = FALSE;
         if(machine->pageTable[vpn_old].dirty == TRUE){
-            printf("write back\n");
+            //printf("write back\n");
             memcpy(&(currentThread->space->fakeDisk[vpn_old * PageSize]), &(machine->mainMemory[ppn * PageSize]), PageSize);
         }
         //ASSERT(FALSE);
@@ -162,6 +163,34 @@ void pageFaultHandler(){
 
 }
 
+//----------------------------
+// setupProcess
+// setup everything before a user programme could be executed
+// add in lab6 ex4
+//---------------------------------
+void setupProcess(char* name){
+    
+    printf("filename:%s\n",name);
+    OpenFile *executable = fileSystem->Open(name);
+    
+    AddrSpace *space = new AddrSpace(executable);
+    
+    currentThread->space = space;
+    
+    delete executable;
+  
+    space->InitRegisters();
+    space->RestoreState();
+    //printf("ready to run?\n");
+    machine->Run();
+}
+
+void setupFork(int func){
+    machine->WriteRegister(PCReg,func);
+    machine->WriteRegister(NextPCReg, func+4);
+    currentThread->SaveUserState();
+    machine->Run();
+}
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -188,12 +217,163 @@ void pageFaultHandler(){
 void
 ExceptionHandler(ExceptionType which)
 {
+    //IntStatus oldLevel = interrupt->SetLevel(IntOff);
     int type = machine->ReadRegister(2);
     //printf("which exception: %d\n", which);
-    if ((which == SyscallException) && (type == SC_Halt)) {
-	    DEBUG('a', "Shutdown, initiated by user program.\n");
-        currentThread->space->cleanBitMap();
-   	    interrupt->Halt();
+    if (which == SyscallException) {
+        if(type == SC_Halt){
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            //currentThread->space->cleanBitMap();
+            interrupt->Halt();
+        }
+        else if(type == SC_Create){
+            printf("SC_CREATE\n");
+            int addr = machine->ReadRegister(4);
+            char name[20];
+            int pos = 0;
+            int data;
+            while(1){
+                while(machine->ReadMem(addr + pos, 1, &data) == FALSE){
+
+                }
+                    //printf("f**k\n");
+                if(data == 0){
+                    name[pos] = '\0';
+                    break;
+                }
+                name[pos++] = char(data);
+                //printf("%d\n",data);
+            }
+            //printf("1%s\n",name);
+            fileSystem->Create(name, SectorSize);
+            machine->changePC();
+        }
+        else if(type == SC_Open){
+            printf("SC_Open\n");
+            int addr = machine->ReadRegister(4);
+            char name[20];
+            int pos = 0;
+            int data;
+            while(1){
+                while(machine->ReadMem(addr + pos, 1, &data) == FALSE)
+                {
+
+                }
+                    //printf("f**k\n");
+                if(data == 0){
+                    name[pos] = '\0';
+                    break;
+                }
+                name[pos++] = char(data);
+            }
+            //printf("openfile name:%s\n",name);
+            OpenFile *openfile = fileSystem->Open(name);
+            //printf("openfileid:%d\n",int(openfile));
+            machine->WriteRegister(2, int(openfile));
+            machine->changePC();
+        }
+        else if (type == SC_Close){
+            printf("SC_Close\n");
+            int fd = machine->ReadRegister(4);
+            OpenFile* openfile = (OpenFile*)fd;
+            delete openfile;
+            machine->changePC();
+        }
+        else if(type == SC_Read){
+            printf("SC_READ\n");
+            int bufferAddr = machine->ReadRegister(4);
+            int size = machine->ReadRegister(5);
+            int fd = machine->ReadRegister(6);
+            //printf("buffer:%x,size:%d,fd:%d\n",bufferAddr,size,fd);
+            OpenFile *openfile = (OpenFile*)fd;
+            char buf[size];
+            int res = openfile->Read(buf, size);
+            for(int i = 0; i < res; i++){
+                while(machine->WriteMem(bufferAddr + i, 1, int(buf[i])) == FALSE){
+
+                }
+                    //printf("no!\n");
+            }
+            machine->WriteRegister(2, res);
+            machine->changePC();
+        }
+        else if(type == SC_Write){
+            printf("SC_Write\n");
+            int bufferAddr = machine->ReadRegister(4);
+            int size = machine->ReadRegister(5);
+            int fd = machine->ReadRegister(6);
+            OpenFile *openfile = (OpenFile*)fd;
+            char buf[size];
+            int data;
+            for(int i = 0; i < size; i++){
+                while(machine->ReadMem(bufferAddr + i, 1, &data) == FALSE){
+
+                }
+                    //printf("no\n");
+                buf[i] = char(data);
+            }
+            openfile->Write(buf, size);
+            machine->changePC();
+        }
+        else if(type == SC_Exec){
+            printf("SC_Exec\n");
+            int addr =  machine->ReadRegister(4);
+            char *name = new char[20];
+            int pos = 0;
+            int data;
+            while(1){
+                while(machine->ReadMem(addr + pos, 1, &data) == FALSE){
+
+                }
+                if(data == 0){
+                    name[pos] = '\0';
+                    break;
+                }
+                name[pos++] = char(data);
+            }
+            //printf("in SCEXEC %s\n",name);
+            Thread *nt = new Thread("new thread");
+            nt->Fork(setupProcess, name);
+            machine->WriteRegister(2, nt->getThreadID());
+            machine->changePC();
+        }
+        else if(type == SC_Fork){
+            printf("SC_Fork\n");
+            int func = machine->ReadRegister(4);
+            //OpenFile *executable = fileSytem->Open(currentThread->filename);
+            AddrSpace *space = currentThread->space;
+            Thread *nt = new Thread("new thread");
+            nt->space = space;
+            nt->Fork(setupFork, (void*)func);
+            machine->changePC();
+        }
+        else if(type == SC_Yield){
+            printf("SC_Yield\n");
+            machine->changePC();
+            currentThread->Yield();
+        }
+        else if(type == SC_Join){
+            printf("SC_Join\n");
+            int tid = machine->ReadRegister(4);
+            //printf("tid:%d tidbitmap[tid]:%d\n",tid,tidbitmap[tid]);
+            while(tidbitmap[tid]){
+                //printf("wait\n");
+                currentThread->Yield();
+            }
+            //printf("joined?\n");
+            machine->changePC();
+        }
+        else if(type == SC_Exit){
+            printf("SC_Exit\n");
+            int status = machine->ReadRegister(4);
+            printf("exit status:%d\n",status);
+            currentThread->space->cleanBitMap();
+            //printf("1\n");
+            machine->changePC();
+            //printf("1\n");
+            currentThread->Finish();
+        }
+
     } 
     /* add in lab4 ex2 */
     /* add in lab4 ex6 */
@@ -217,4 +397,5 @@ ExceptionHandler(ExceptionType which)
 	    printf("Unexpected user mode exception %d %d\n", which, type);
 	    ASSERT(FALSE);
     }
+    //(void) interrupt->SetLevel(oldLevel);
 }

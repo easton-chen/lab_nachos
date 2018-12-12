@@ -190,6 +190,8 @@ Thread::Finish ()
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
     threadToBeDestroyed = currentThread;
+    tidbitmap[threadID] = 0; //add in lab6
+    
     Sleep();					// invokes SWITCH
     // not reached
 }
@@ -232,11 +234,15 @@ Thread::Yield ()
         nextThread = scheduler->FindNextToRun();
         scheduler->ReadyToRun(this);
     }
+    
     /* end add*/
     //nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
 	    //scheduler->ReadyToRun(this); // comment in lab2 ex3
+        //printf("in thread::sleep next thread:%s\n",nextThread->name);
+        //printf("in thread::sleep this thead:%s\n", name);
 	    scheduler->Run(nextThread);
+        
     }
     (void) interrupt->SetLevel(oldLevel);
 }
@@ -272,8 +278,9 @@ Thread::Sleep ()
 
     status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == NULL)
-	interrupt->Idle();	// no one to run, wait for an interrupt
-        
+	    interrupt->Idle();	// no one to run, wait for an interrupt
+    printf("in thread::sleep next thread:%s\n",nextThread->name);
+    printf("in thread::sleep this thead:%s\n", name);
     scheduler->Run(nextThread); // returns when we've been signalled
 }
 

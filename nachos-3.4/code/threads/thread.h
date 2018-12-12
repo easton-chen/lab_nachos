@@ -136,6 +136,7 @@ class Thread {
     int priority;
     int timeSliceLeft;
     /* end add */
+    
 
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.
@@ -153,6 +154,7 @@ class Thread {
     void RestoreUserState();		// restore user-level register state
 
     AddrSpace *space;			// User code this thread is running.
+    char* filename;
     
 #endif
 };

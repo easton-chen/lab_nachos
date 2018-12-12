@@ -34,6 +34,6 @@ main()
             for (k = 0; k < Dim; k++)
 		 C[i][j] += A[i][k] * B[k][j];
 
-    //Exit(C[Dim-1][Dim-1]);		/* and then we're done */
-	Halt();
+    Exit(0);		/* and then we're done */
+	//Halt();
 }

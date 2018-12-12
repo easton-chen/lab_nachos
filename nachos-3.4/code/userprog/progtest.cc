@@ -61,10 +61,10 @@ StartProcess(char *filename)
     space->RestoreState();		// load page table register
 
     /* add in lab4 ex5 */
-    
+    /*
     Thread* nt = new Thread("new thread");
     nt->Fork(runUserProg, (void*)nt->getThreadID());
-    
+    */
     /* end add */
     //printf("in main!\n");
     machine->Run();			// jump to the user progam

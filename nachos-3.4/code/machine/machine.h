@@ -189,6 +189,10 @@ class Machine {
 	/* add in lab4 ch2 */
 	TranslationEntry *invertedTable;
 	/* end add */
+
+	/* add in lab6 ex2 */
+	void changePC();
+	/* end add */
   private:
     bool singleStep;		// drop back into the debugger after each
 				// simulated instruction
